@@ -93,33 +93,18 @@ async function runEngine(input, userConstraints = {}, options = {}) {
             { limit: options.limit || 1000 },
         );
 
-        // --- Phase 5: Format ---
-        const formatted = formatResults(solveResult.solutions, {
-            totalFound: solveResult.totalFound,
-            capped: solveResult.capped,
-            variableOrder,
-        });
-
-        function treeDepth(node) {
-            if (!node) return 0;
-            if (node.type === "Number" || node.type === "Variable") return 1;
-            if (node.type === "UnaryOp") return 1 + treeDepth(node.operand);
-            return 1 + Math.max(treeDepth(node.left), treeDepth(node.right));
-        }
+        const solutions = solve(coeffs, target, constraints);
+        const formattedSolutions = formatResults(solutions.solutions);
 
         return {
             success: true,
             input: cleanedInput,
             coeffs,
             target,
-            variableOrder,
-            ast: { left, right },
-            solutionCount: formatted.count,
-            totalFound: solveResult.totalFound,
-            capped: solveResult.capped,
-            solutions: solveResult.solutions,
-            formattedResult: formatted,
-            warnings: formatted.warnings,
+            solutionCount: solutions.solutions.length,
+            solutions: solutions.solutions,
+            formattedSolutions,
+            warnings,
             meta: {
                 variableCount: Object.keys(coeffs).length,
                 constraintCount: Object.keys(userConstraints).length,

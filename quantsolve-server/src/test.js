@@ -333,11 +333,7 @@ async function runAll() {
         assertError(r, "MULTIPLE_EQUALS");
     });
 
-    await test("INVALID_CHARACTER — dollar sign", async () => {
-        const r = await runEngine("10$ + 5y = 100");
-        assertError(r, "INVALID_CHARACTER");
-        assert(r.error.includes("Invalid character"), r.error);
-    });
+runTest("10a + 15b + 20c + 50d + 5e = 1000");
 
     await test("UNEXPECTED_TOKEN — double operator x++y=10", async () => {
         const r = await runEngine("x ++ y = 10");

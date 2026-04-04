@@ -6,6 +6,8 @@ const InputForm = () => {
 
   const navigate = useNavigate();
 
+  const [loading, setLoading] = useState(false);
+
   const [formData, setFormData] = useState({
     query: "",
     constraints: [
@@ -84,18 +86,24 @@ const InputForm = () => {
   const  handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setLoading(true);
       const res = await axios.post("http://localhost:5500/solve", {
         equation: formData.query,
         constraints: transformConstraints(formData.constraints)
-      });
-      console.log(res.data);
+        });
+        if (res.data && res.data.solutions) {
+            navigate("/dashboard", { state: res.data });
+         }
     } catch (error) {
       console.error("Error submitting form:", error);
+    } finally {
+      setLoading(false);
     }
     
   };
 
   return (
+    
     <div className="flex items-center justify-center bg-[#0B0F19] px-4">
 
       <div className="w-full max-w-xl bg-[#1F2937] border border-[#F59E0B] rounded-2xl p-8 shadow-lg hover:shadow-[0_0_20px_#F59E0B] transition">
@@ -129,7 +137,7 @@ const InputForm = () => {
               <button
                 type="button"
                 onClick={addConstraint}
-                className="text-[#F59E0B] flex items-center gap-1"
+                className="text-[#F59E0B] flex items-center gap-1 cursor-pointer"
               >
                 <Plus size={16} /> Add Rule
               </button>
@@ -186,7 +194,7 @@ const InputForm = () => {
                   <button
                     type="button"
                     onClick={() => removeConstraint(index)}
-                    className="text-red-400"
+                    className="text-red-400 cursor-pointer"
                   >
                     <Trash2 size={16} />
                   </button>
@@ -199,15 +207,35 @@ const InputForm = () => {
           {/* Submit */}
           <button
             type="submit"
-            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg hover:bg-[#D97706] transition"
+            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg hover:bg-[#D97706] transition cursor-pointer"
           >
             Solve Problem
           </button>
 
         </form>
       </div>
+      {loading && <FullScreenLoader />}
     </div>
   );
 };
 
 export default InputForm;
+
+const FullScreenLoader = () => {
+  return (
+    <div className="fixed inset-0 bg-[#0B0F19]/80 flex items-center justify-center z-50">
+      <div className="flex flex-col items-center gap-3">
+        
+        <div className="flex gap-2">
+          <div className="w-3 h-3 bg-[#F59E0B] rounded-full animate-bounce"></div>
+          <div className="w-3 h-3 bg-[#F59E0B] rounded-full animate-bounce [animation-delay:0.2s]"></div>
+          <div className="w-3 h-3 bg-[#F59E0B] rounded-full animate-bounce [animation-delay:0.4s]"></div>
+        </div>
+
+        <p className="text-[#9CA3AF] text-sm">
+          Solving your equation...
+        </p>
+      </div>
+    </div>
+  );
+};
