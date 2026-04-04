@@ -102,7 +102,7 @@ function runEngine(input, constraints, options = {}) {
         }
 
         const solutions = solve(coeffs, target, constraints);
-        const formattedSolutions = formatResults(solutions);
+        const formattedSolutions = formatResults(solutions.solutions);
 
         return {
             success: true,
@@ -110,8 +110,8 @@ function runEngine(input, constraints, options = {}) {
             tokens,
             coeffs,
             target,
-            solutionCount: solutions.length,
-            solutions,
+            solutionCount: solutions.solutions.length,
+            solutions: solutions.solutions,
             formattedSolutions,
             warnings,
             meta: {
