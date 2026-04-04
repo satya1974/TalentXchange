@@ -1,4 +1,4 @@
-// ast.js
+// engine/ast.js
 
 class NumberNode {
     constructor(value) {
@@ -23,8 +23,13 @@ class BinaryOpNode {
     }
 }
 
-module.exports = {
-    NumberNode,
-    VariableNode,
-    BinaryOpNode,
-};
+// Added: required for -x, -(x+y), leading minus in any expression
+class UnaryOpNode {
+    constructor(op, operand) {
+        this.type = "UnaryOp";
+        this.op = op; // always "-"
+        this.operand = operand;
+    }
+}
+
+module.exports = { NumberNode, VariableNode, BinaryOpNode, UnaryOpNode };
