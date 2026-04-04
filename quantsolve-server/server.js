@@ -10,6 +10,8 @@ app.get("/", (req, res) => {
 
 app.post("/solve", (req, res) => {
     const { equation, constraints } = req.body;
+    console.log(req.body);
+
     const result = runEngine(equation, constraints, false);
     res.json(result);
 });
