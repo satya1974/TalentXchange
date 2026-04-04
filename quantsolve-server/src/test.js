@@ -29,7 +29,7 @@ runTest("10a + 15b + 20c = 500");
 
 runTest("10a + 15b + 20c + 25d = 800");
 
-runTest("10a + 15b + 20c + 25d + 5e = 1000");
+runTest("10a + 15b + 20c + 50d + 5e = 1000");
 
 runTest("10a + 15b + 20c + 25d + 5e + 2f = 1200");
 
