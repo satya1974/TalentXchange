@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import { Trash2, Plus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 const InputForm = () => {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     query: "",
     constraints: [
@@ -42,6 +44,7 @@ const InputForm = () => {
     e.preventDefault();
 
     console.log("FINAL DATA:", formData);
+    navigate("/dashboard");
 
     // reset
     setFormData({
@@ -51,7 +54,7 @@ const InputForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#0B0F19] px-4">
+    <div className=" flex items-center justify-center bg-[#0B0F19] px-4">
       
       <div className="w-full max-w-xl bg-[#1F2937] border border-[#374151] rounded-2xl p-8 shadow-lg">
         
@@ -150,7 +153,7 @@ const InputForm = () => {
           {/* Submit */}
           <button
             type="submit"
-            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg"
+            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg cursor-pointer hover:bg-[#D97706] transition-colors duration-300"
           >
             Solve Problem
           </button>
