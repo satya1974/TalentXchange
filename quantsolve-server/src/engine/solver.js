@@ -10,38 +10,26 @@ function gcdArray(arr) {
     return arr.reduce((a, b) => gcd(a, b));
 }
 
-function getMinMax(variable, remaining, coeff, constraints) {
-    let min = 0;
-    let max = Math.floor(remaining / coeff);
-
-    if (constraints && constraints[variable]) {
-        if (constraints[variable].min !== undefined) {
-            min = constraints[variable].min;
-        }
-
-        if (constraints[variable].max !== undefined) {
-            max = Math.min(max, constraints[variable].max);
-        }
-    }
-
-    return { min, max };
-}
-
-function solve(coeffs, target, constraints) {
+function solve(coeffs, target, constraints = {}, options = {}) {
     const variables = Object.keys(coeffs);
 
     const coeffValues = Object.values(coeffs);
     const g = gcdArray(coeffValues);
 
     if (target % g !== 0) {
-        return [];
+        return { solutions: [], count: 0 };
     }
 
+    // Sort variables by coefficient descending
     variables.sort((a, b) => coeffs[b] - coeffs[a]);
 
     const results = [];
+    let count = 0;
+    const limit = options.limit || 1000;
 
     function backtrack(index, remaining, solution) {
+        if (remaining < 0) return;
+
         if (index === variables.length - 1) {
             const v = variables[index];
             const coeff = coeffs[v];
@@ -49,13 +37,13 @@ function solve(coeffs, target, constraints) {
             if (remaining % coeff === 0) {
                 const val = remaining / coeff;
 
-                if (
-                    val >= 0 &&
-                    Number.isInteger(val) &&
-                    checkConstraint(v, val, constraints)
-                ) {
+                if (val >= 0 && checkConstraint(v, val, constraints)) {
                     solution[v] = val;
-                    results.push({ ...solution });
+                    count++;
+
+                    if (results.length < limit) {
+                        results.push({ ...solution });
+                    }
                 }
             }
             return;
@@ -63,18 +51,22 @@ function solve(coeffs, target, constraints) {
 
         const v = variables[index];
         const coeff = coeffs[v];
+        const maxVal = Math.floor(remaining / coeff);
 
-        const { min, max } = getMinMax(v, remaining, coeff, constraints);
-
-        for (let i = min; i <= max; i++) {
+        for (let i = 0; i <= maxVal; i++) {
             if (!checkConstraint(v, i, constraints)) continue;
+
             solution[v] = i;
             backtrack(index + 1, remaining - coeff * i, solution);
         }
     }
 
     backtrack(0, target, {});
-    return results;
+
+    return {
+        solutions: results,
+        count,
+    };
 }
 
 module.exports = solve;
