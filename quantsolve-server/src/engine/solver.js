@@ -1,13 +1,21 @@
 // engine/solver.js
+// Three-layer pruning strategy:
+//   Layer 1: Budget ceiling      — maxVal = floor(remaining / coeff)
+//   Layer 2: Suffix min/max      — precomputed O(1) remainder-bounds check
+//   Layer 3: Parity step         — step=2 for even/odd constraints
 
-const checkConstraint = require("./constraintEngine");
+const { EngineError, ErrorCode } = require("./errors");
 
 function gcd(a, b) {
-    return b === 0 ? a : gcd(b, a % b);
+    a = Math.abs(a);
+    b = Math.abs(b);
+    while (b !== 0) {
+        [a, b] = [b, a % b];
+    }
+    return a;
 }
-
 function gcdArray(arr) {
-    return arr.reduce((a, b) => gcd(a, b));
+    return arr.reduce((acc, val) => gcd(acc, val));
 }
 
 function solve(coeffs, target, constraints = {}, options = {}) {
@@ -23,6 +31,8 @@ function solve(coeffs, target, constraints = {}, options = {}) {
     // Sort variables by coefficient descending
     variables.sort((a, b) => coeffs[b] - coeffs[a]);
 
+    // 7. Backtracker
+    const limit = options.limit || 1000;
     const results = [];
     let count = 0;
     const limit = options.limit || 1000;
