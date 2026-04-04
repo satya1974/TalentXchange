@@ -1,22 +1,52 @@
 import React, { useState } from "react";
+import { Trash2, Plus } from "lucide-react";
 
 const InputForm = () => {
   const [formData, setFormData] = useState({
     query: "",
-    constraints: ""
+    constraints: [
+      { variable: "", operator: "", value: 0 }
+    ]
   });
 
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+  // Handle objective function
+  const handleQueryChange = (e) => {
+    setFormData((prev) => ({ ...prev, query: e.target.value }));
+  };
+
+  // Add new constraint
+  const addConstraint = () => {
+    setFormData((prev) => ({
+      ...prev,
+      constraints: [
+        ...prev.constraints,
+        { variable: "", operator: ">=", value: "" }
+      ]
+    }));
+  };
+
+  // Remove constraint
+  const removeConstraint = (index) => {
+    const updated = formData.constraints.filter((_, i) => i !== index);
+    setFormData((prev) => ({ ...prev, constraints: updated }));
+  };
+
+  // Update constraint
+  const updateConstraint = (index, key, value) => {
+    const updated = [...formData.constraints];
+    updated[index][key] = value;
+    setFormData((prev) => ({ ...prev, constraints: updated }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    console.log(formData);
+
+    console.log("FINAL DATA:", formData);
+
+    // reset
     setFormData({
       query: "",
-      constraints: ""
+      constraints: [{ variable: "", operator: ">=", value: "" }]
     });
   };
 
@@ -25,7 +55,6 @@ const InputForm = () => {
       
       <div className="w-full max-w-xl bg-[#1F2937] border border-[#374151] rounded-2xl p-8 shadow-lg">
         
-        {/* Title */}
         <h2 className="text-2xl font-semibold text-[#F9FAFB] mb-6">
           Solve Optimization Problem
         </h2>
@@ -34,59 +63,94 @@ const InputForm = () => {
           
           {/* Objective Function */}
           <div>
-            <label className="text-sm font-medium text-[#9CA3AF]">
+            <label className="text-sm text-[#9CA3AF]">
               Objective Function
             </label>
             <input
               type="text"
-              name="query"
               value={formData.query}
-              onChange={handleChange}
+              onChange={handleQueryChange}
               placeholder="e.g., Maximize 10x + 20y"
-              required
-              autoComplete="off"
-              className="mt-2 w-full bg-[#0B0F19] border border-[#374151] text-[#F9FAFB] placeholder:text-[#9CA3AF] p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B] transition"
+              className="mt-2 w-full bg-[#0B0F19] border border-[#374151] text-[#F9FAFB] p-3 rounded-lg focus:ring-2 focus:ring-[#F59E0B]"
             />
           </div>
 
           {/* Constraints */}
           <div>
-            <label className="text-sm font-medium text-[#9CA3AF]">
-              Constraints (Optional)
-            </label>
-            <div className="flex gap-3"> 
-            <select name="variable" id="" className="mt-2 w-full bg-[#0B0F19] border border-[#374151] text-[#F9FAFB] p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B] transition">
-              <option value="">Select a Varible</option>
-              <option value="x">x</option>
-              <option value="y">y</option>
-              <option value="z">z</option>
-            </select>
-            <select name="operator" id="" className="mt-2 w-full bg-[#0B0F19] border border-[#374151] text-[#F9FAFB] p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B] transition">
-              <option value="">Select an operator</option>
-              <option value="≤">≤</option>
-              <option value="≥">≥</option>
-              <option value="<">&lt;</option>
-              <option value=">">&gt;</option>
-              <option value="=">=</option>
-              <option value="!=">≠</option>
-        
-            </select>
-
-            <input
-              type="text"
-              name="value"
-              placeholder="Value"
-              className="mt-2 w-full bg-[#0B0F19] border border-[#374151] text-[#F9FAFB] placeholder:text-[#9CA3AF] p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#F59E0B] transition"
-            />
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-sm text-[#9CA3AF]">
+                Constraints
+              </label>
+              <button
+                type="button"
+                onClick={addConstraint}
+                className="text-[#F59E0B] flex items-center gap-1"
+              >
+                <Plus size={16} /> Add Rule
+              </button>
             </div>
-            
 
+            <div className="space-y-3">
+              {formData.constraints.map((c, index) => (
+                <div
+                  key={index}
+                  className="flex justify-around gap-2 items-center bg-[#0B0F19] p-3 rounded-lg"
+                >
+                  {/* Variable */}
+                  <input
+                    type="text"
+                    value={c.variable}
+                    onChange={(e) =>
+                      updateConstraint(index, "variable", e.target.value)
+                    }
+                    placeholder="Variable"
+                    className="bg-[#1F2937] p-2 rounded  text-[#F9FAFB]"
+                  />
+
+                  {/* Operator */}
+                  <select
+                    value={c.operator}
+                    onChange={(e) =>
+                      updateConstraint(index, "operator", e.target.value)
+                    }
+                    className="bg-[#1F2937] p-2 w-30 rounded text-[#F9FAFB] text-center"
+                  >
+                    <option value="">operator</option>
+                    <option value=">=">&ge;</option>
+                    <option value="<=">&le;</option>
+                    <option value="=">=</option>
+                    <option value=">">&gt;</option>
+                    <option value="<">&lt;</option>
+                  </select>
+
+                  {/* Value */}
+                  <input
+                    type="text"
+                    value={c.value}
+                    onChange={(e) =>
+                      updateConstraint(index, "value", e.target.value)
+                    }
+                    placeholder="Value"
+                    className="bg-[#1F2937] p-2 rounded w-30 text-[#F9FAFB]"
+                  />
+
+                  {/* Delete */}
+                  <button
+                    type="button"
+                    onClick={() => removeConstraint(index)}
+                    className="text-red-400"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
-            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg hover:opacity-90 transition cursor-pointer"
+            className="mt-4 bg-[#F59E0B] text-black font-semibold py-3 rounded-lg"
           >
             Solve Problem
           </button>
