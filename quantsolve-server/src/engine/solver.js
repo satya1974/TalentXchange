@@ -14,7 +14,7 @@ function getMinMax(variable, remaining, coeff, constraints) {
     let min = 0;
     let max = Math.floor(remaining / coeff);
 
-    if (constraints[variable]) {
+    if (constraints && constraints[variable]) {
         if (constraints[variable].min !== undefined) {
             min = constraints[variable].min;
         }
