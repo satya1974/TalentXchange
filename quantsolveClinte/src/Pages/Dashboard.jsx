@@ -192,4 +192,7 @@ const Card = ({ title, value }) => {
     </div>
   );
 };
+<<<<<<< HEAD
 
+=======
+>>>>>>> 7386236c9bbc8412055d1560e916bd794be197ff
