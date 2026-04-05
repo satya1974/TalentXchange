@@ -35,7 +35,6 @@ function solve(coeffs, target, constraints = {}, options = {}) {
     const limit = options.limit || 1000;
     const results = [];
     let count = 0;
-    const limit = options.limit || 1000;
 
     function backtrack(index, remaining, solution) {
         if (remaining < 0) return;
