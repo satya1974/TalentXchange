@@ -2,8 +2,8 @@
 // Orchestrates the full QuantSolve pipeline:
 //   Input → Lexer → Parser → Normalizer → Solver (worker thread) → Formatter
 //
-// The solver runs in a worker_threads Worker so it never blocks the main
-// Node.js event loop. A configurable timeout kills runaway solves.
+// Solver runs in a worker_threads Worker so it never blocks the main event loop.
+// Response is PAGINATED — solver finds all solutions, sends only the requested page.
 
 const { Worker } = require("worker_threads");
 const path = require("path");
@@ -15,10 +15,8 @@ const formatResults = require("./resultFormatter");
 const handleError = require("./errorHandler");
 const { EngineError, ErrorCode } = require("./errors");
 
-// How long (ms) to wait for the worker before killing it
 const SOLVE_TIMEOUT_MS = 8000;
 
-// Run the solver in a worker thread, returning a Promise
 function runSolverInWorker(coeffs, target, constraints, options) {
     return new Promise((resolve, reject) => {
         const worker = new Worker(path.join(__dirname, "solverWorker.js"), {
@@ -35,7 +33,6 @@ function runSolverInWorker(coeffs, target, constraints, options) {
             if (result.success) {
                 resolve(result);
             } else {
-                // Worker posted a structured error — re-throw as EngineError if possible
                 reject(
                     Object.assign(new Error(result.error), {
                         isEngineError: true,
@@ -66,38 +63,47 @@ function runSolverInWorker(coeffs, target, constraints, options) {
 
 async function runEngine(input, userConstraints = {}, options = {}) {
     try {
-        // --- Phase 0: Input validation ---
         if (typeof input !== "string" || !input.trim()) {
             throw new EngineError(ErrorCode.EMPTY_INPUT);
         }
 
         const cleanedInput = input.replace(/\s+/g, " ").trim();
 
-        // --- Phase 1: Lex ---
+        // Phase 1: Lex
         const tokens = lexer(cleanedInput);
 
-        // --- Phase 2: Parse ---
+        // Phase 2: Parse
         const parser = new Parser(tokens);
         const { left, right } = parser.parseEquation();
 
-        // --- Phase 3: Normalize ---
+        // Phase 3: Normalize
         const { coeffs, target } = normalizeEquation(left, right);
+        const variableOrder = Object.keys(coeffs);
 
-        const variableOrder = Object.keys(coeffs); // capture original order before solver reorders
+        // Phase 4: Solve (worker thread)
+        // Pass page + pageSize so solver returns only the requested slice.
+        // totalFound in the response is always the TRUE full count.
+        const workerOptions = {
+            page: options.page || 1,
+            pageSize: options.pageSize || 50,
+        };
 
-        // --- Phase 4: Solve (worker thread) ---
         const solveResult = await runSolverInWorker(
             coeffs,
             target,
             userConstraints,
-            { limit: options.limit || 1000 },
+            workerOptions,
         );
 
-        // --- Phase 5: Format ---
+        // Phase 5: Format
         const formatted = formatResults(solveResult.solutions, {
             totalFound: solveResult.totalFound,
-            capped: solveResult.capped,
+            capped: false,
             variableOrder,
+            page: solveResult.page,
+            pageSize: solveResult.pageSize,
+            totalPages: solveResult.totalPages,
+            hasMore: solveResult.hasMore,
         });
 
         function treeDepth(node) {
@@ -114,9 +120,13 @@ async function runEngine(input, userConstraints = {}, options = {}) {
             target,
             variableOrder,
             ast: { left, right },
-            solutionCount: formatted.count,
-            totalFound: solveResult.totalFound,
-            capped: solveResult.capped,
+            // Pagination metadata
+            totalFound: solveResult.totalFound, // true total e.g. 352,800
+            page: solveResult.page,
+            pageSize: solveResult.pageSize,
+            totalPages: solveResult.totalPages,
+            hasMore: solveResult.hasMore,
+            // This page's solutions
             solutions: solveResult.solutions,
             formattedResult: formatted,
             warnings: formatted.warnings,
