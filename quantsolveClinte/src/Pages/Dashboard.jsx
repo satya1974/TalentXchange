@@ -7,12 +7,11 @@ import Tree from "react-d3-tree";
 const convertAST = (node) => {
     if (!node) return null;
 
-    // 🔁 AUTO-UNWRAP COMMON WRAPPERS
     if (node.ast) return convertAST(node.ast);
     if (node.expr) return convertAST(node.expr);
     if (node.body) return convertAST(node.body);
 
-    // 🟢 NUMBER
+    // NUMBER
     if (
         node.type === "Number" ||
         node.type === "Literal" ||
@@ -24,15 +23,15 @@ const convertAST = (node) => {
         };
     }
 
-    // 🔵 VARIABLE
-    if (node.type === "Variable" || node.type === "Identifier" || node.name) {
+    // VARIABLE (FIXED)
+    if (node.type === "Variable" || node.type === "Identifier") {
         return {
             name: node.name,
             type: "variable",
         };
     }
 
-    // 🟡 BINARY OP
+    // BINARY
     if (
         node.type === "BinaryOp" ||
         node.type === "BinaryExpression" ||
@@ -41,13 +40,11 @@ const convertAST = (node) => {
         return {
             name: node.operator || "?",
             type: "operator",
-            children: [convertAST(node.left), convertAST(node.right)].filter(
-                Boolean,
-            ),
+            children: [convertAST(node.left), convertAST(node.right)].filter(Boolean),
         };
     }
 
-    // 🔴 EQUATION SUPPORT (VERY COMMON)
+    // EQUATION
     if (node.type === "Equation") {
         return {
             name: "=",
@@ -56,9 +53,9 @@ const convertAST = (node) => {
         };
     }
 
-    // 🧠 LAST RESORT: TRY CHILD KEYS
+    // SAFE CHILD DETECTION (FIXED)
     const possibleChildren = Object.values(node).filter(
-        (v) => typeof v === "object",
+        (v) => v && typeof v === "object"
     );
 
     if (possibleChildren.length > 0) {
@@ -110,9 +107,6 @@ const ASTViewer = ({ ast }) => {
 
     const treeData = convertAST(ast);
 
-    console.log("🔍 RAW AST:", ast);
-    console.log("🌳 TREE:", treeData);
-
     if (!treeData) {
         return <p className="text-red-400 text-center">Failed to parse AST</p>;
     }
@@ -123,7 +117,7 @@ const ASTViewer = ({ ast }) => {
             className="w-full h-[500px] bg-[#0B0F19] rounded-xl overflow-hidden border border-[#374151]"
         >
             <Tree
-                data={[treeData]} // ✅ FIXED ROOT
+                data={[treeData]}
                 orientation="vertical"
                 translate={translate}
                 zoomable
@@ -137,12 +131,7 @@ const ASTViewer = ({ ast }) => {
 
                     return (
                         <g>
-                            <circle
-                                r={26}
-                                fill="#111827"
-                                stroke={color}
-                                strokeWidth="3"
-                            />
+                            <circle r={26} fill="#111827" stroke={color} strokeWidth="3" />
                             <text
                                 fill="#F9FAFB"
                                 fontSize="14"
@@ -155,12 +144,6 @@ const ASTViewer = ({ ast }) => {
                         </g>
                     );
                 }}
-                styles={{
-                    links: {
-                        stroke: "#4B5563",
-                        strokeWidth: 2,
-                    },
-                }}
             />
         </div>
     );
@@ -171,7 +154,6 @@ const Dashboard = () => {
     const location = useLocation();
     const data = location.state || {};
 
-    const [activeTab, setActiveTab] = useState("tokens");
     const [mode, setMode] = useState("user");
 
     const solutions = data?.solutions || [];
@@ -185,160 +167,80 @@ const Dashboard = () => {
 
     const currentSolutions = solutions.slice(
         (currentPage - 1) * itemsPerPage,
-        currentPage * itemsPerPage,
+        currentPage * itemsPerPage
     );
 
     const totalPages = Math.ceil(solutions.length / itemsPerPage);
-
-    console.log("🚨 FINAL AST:", data.ast);
 
     return (
         <div className="bg-[#0B0F19] text-[#F9FAFB] min-h-screen">
             <Navbar />
 
             <div className="max-w-7xl mx-auto p-6 space-y-8">
-                <div className="flex justify-between items-center">
-                    <h1 className="text-2xl font-bold">Solver Dashboard</h1>
-
-                    <div className="flex bg-[#1F2937] rounded-full p-1 border border-[#374151]">
-                        {["user", "dev"].map((m) => (
-                            <button
-                                key={m}
-                                onClick={() => setMode(m)}
-                                className={`px-4 py-1 text-sm rounded-full ${
-                                    mode === m
-                                        ? "bg-[#F59E0B] text-black"
-                                        : "text-[#9CA3AF]"
-                                }`}
-                            >
-                                {m}
-                            </button>
-                        ))}
-                    </div>
-                </div>
+                <h1 className="text-2xl font-bold">Solver Dashboard</h1>
 
                 <div className="grid md:grid-cols-4 gap-6 text-center">
                     <Card title="Equation" value={data.input || "-"} />
-                    <Card
-                        title="Variables"
-                        value={data?.meta?.variableCount || 0}
-                    />
+                    <Card title="Variables" value={data?.meta?.variableCount || 0} />
                     <Card title="Solutions" value={data.solutionCount || 0} />
-                    <Card
-                        title="Status"
-                        value={data.success ? "Success" : "Failed"}
-                    />
+                    <Card title="Status" value={data.success ? "Success" : "Failed"} />
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6">
-                    {/* SOLUTIONS */}
+                    {/* Solutions */}
                     <div className="bg-[#1F2937]/80 p-5 rounded-2xl border border-[#374151]">
-                        <h2 className="text-lg text-[#F59E0B] mb-4">
-                            Solutions
-                        </h2>
+                        <h2 className="text-lg text-[#F59E0B] mb-4">Solutions</h2>
 
-                        <div className="max-h-[420px] overflow-auto">
-                            <table className="w-full text-sm">
-                                <thead className="sticky top-0 bg-[#111827]">
-                                    <tr>
-                                        {solutions[0] &&
-                                            Object.keys(solutions[0]).map(
-                                                (key) => (
-                                                    <th
-                                                        key={key}
-                                                        className="p-3 text-left"
-                                                    >
-                                                        {key}
-                                                    </th>
-                                                ),
-                                            )}
+                        <table className="w-full text-sm">
+                            <thead>
+                                <tr>
+                                    {solutions.length > 0 &&
+                                        Object.keys(solutions[0]).map((key) => (
+                                            <th key={key}>{key}</th>
+                                        ))}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {currentSolutions.map((sol, i) => (
+                                    <tr key={i}>
+                                        {Object.values(sol).map((val, idx) => (
+                                            <td key={idx}>{val}</td>
+                                        ))}
                                     </tr>
-                                </thead>
-
-                                <tbody>
-                                    {currentSolutions.map((sol, i) => (
-                                        <tr
-                                            key={i}
-                                            className="border-b border-[#374151]"
-                                        >
-                                            {Object.values(sol).map(
-                                                (val, idx) => (
-                                                    <td
-                                                        key={idx}
-                                                        className="p-3"
-                                                    >
-                                                        {val}
-                                                    </td>
-                                                ),
-                                            )}
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-
-                            {solutions.length === 0 && (
-                                <p className="text-center text-[#9CA3AF] py-6">
-                                    No solutions available
-                                </p>
-                            )}
-                        </div>
+                                ))}
+                            </tbody>
+                        </table>
 
                         {totalPages > 1 && (
-                            <div className="flex justify-between mt-4 text-sm">
-                                <button
-                                    onClick={() => setCurrentPage((p) => p - 1)}
-                                    disabled={currentPage === 1}
-                                >
-                                    ← Prev
+                            <div className="flex justify-between mt-4">
+                                <button onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
+                                    Prev
                                 </button>
-
-                                <span>
-                                    Page {currentPage} of {totalPages}
-                                </span>
-
-                                <button
-                                    onClick={() => setCurrentPage((p) => p + 1)}
-                                    disabled={currentPage === totalPages}
-                                >
-                                    Next →
+                                <span>{currentPage} / {totalPages}</span>
+                                <button onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
+                                    Next
                                 </button>
                             </div>
                         )}
                     </div>
 
                     {/* AST */}
-                    <div className="bg-[#1F2937]/80 p-5 rounded-2xl border border-[#374151]">
-                        <h2 className="text-lg font-semibold text-[#F59E0B] mb-4">
-                            Visualization
-                        </h2>
-
-                        <p className="text-sm text-[#9CA3AF] mb-2">
-                            Abstract Syntax Tree
-                        </p>
-
-                        <ASTViewer ast={data.ast} />
-                    </div>
+                    <ASTViewer ast={data.ast} />
                 </div>
 
-                {/* DEV PANEL */}
                 {mode === "dev" && (
-                    <div className="bg-[#1F2937]/80 p-5 rounded-2xl border border-[#374151]">
-                        <pre className="text-green-400 bg-[#0B0F19] p-4 rounded max-h-[300px] overflow-auto">
-                            {JSON.stringify(data, null, 2)}
-                        </pre>
-                    </div>
+                    <pre>{JSON.stringify(data, null, 2)}</pre>
                 )}
             </div>
         </div>
     );
 };
 
-export default Dashboard;
-
-/* CARD */
 const Card = ({ title, value }) => (
-    <div className="bg-[#1F2937] p-5 rounded-xl border border-[#374151]">
-        <p className="text-sm text-[#F59E0B]">{title}</p>
-        <p className="text-xl font-semibold">{value}</p>
+    <div>
+        <p>{title}</p>
+        <p>{value}</p>
     </div>
 );
+
+export default Dashboard;

@@ -59,7 +59,7 @@ const HomePage = () => {
               onClick={scrollToSolver}
               className="px-6 py-3 bg-[#F59E0B] text-black rounded-lg font-medium 
               hover:bg-[#fbbf24] hover:scale-105 active:scale-95 
-              transition duration-200 shadow-md hover:shadow-lg"
+              transition duration-200 shadow-md hover:shadow-lg cursor-pointer"
             >
               Try Live Solver
             </button>
@@ -68,7 +68,7 @@ const HomePage = () => {
               onClick={scrollToExamples}
               className="px-6 py-3 border border-[#374151] rounded-lg 
               hover:bg-[#1F2937] hover:scale-105 active:scale-95 
-              transition duration-200"
+              transition duration-200 cursor-pointer"
             >
               View Example
             </button>
