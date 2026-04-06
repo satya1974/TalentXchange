@@ -218,6 +218,7 @@ export default function Solver() {
                             variables={variables}
                             constraints={constraints}
                             setConstraints={setConstraints}
+                            equation={equation}
                         />
                     </div>
                 </div>

@@ -16,6 +16,7 @@ const categoryMap = {
     [ErrorCode.VARIABLE_IN_DENOMINATOR]: "semantic",
     [ErrorCode.FRACTIONAL_COEFFICIENT]: "semantic",
     [ErrorCode.NON_LINEAR_TERM]: "semantic",
+    [ErrorCode.POLYNOMIAL_UNSUPPORTED]: "semantic",
     [ErrorCode.NO_VARIABLES]: "semantic",
     [ErrorCode.NEGATIVE_COEFFICIENT]: "semantic",
 

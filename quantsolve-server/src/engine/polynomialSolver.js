@@ -8,7 +8,7 @@ const MAX_MULTI_COMBINATIONS = Number(
     process.env.POLYNOMIAL_MAX_COMBINATIONS || 2000000,
 );
 
-const SINGLE_DEFAULT_MIN = Number(process.env.POLYNOMIAL_DEFAULT_MIN || 0);
+const SINGLE_DEFAULT_MIN = Number(process.env.POLYNOMIAL_DEFAULT_MIN ?? -100);
 const SINGLE_DEFAULT_MAX = Number(process.env.POLYNOMIAL_DEFAULT_MAX || 10000);
 
 const MULTI_DEFAULT_MIN = Number(process.env.POLYNOMIAL_MULTI_DEFAULT_MIN || 0);
@@ -297,6 +297,57 @@ function evaluateAstWithAssignment(node, assignment) {
     }
 }
 
+// Returns the maximum exponent that varName appears with in the AST.
+// e.g. x^2 + x → 2,  x^3 → 3,  x (linear) → 1
+// Used to decide if default domain should be symmetric (even degree) or ≥0 (odd/linear).
+function getMaxExponentForVar(node, varName) {
+    if (!node) return 0;
+    if (node.type === 'Number') return 0;
+    if (node.type === 'Variable') return node.name === varName ? 1 : 0;
+    if (node.type === 'UnaryOp') return getMaxExponentForVar(node.operand, varName);
+    if (node.type !== 'BinaryOp') return 0;
+    switch (node.operator) {
+        case '+': case '-':
+            return Math.max(
+                getMaxExponentForVar(node.left,  varName),
+                getMaxExponentForVar(node.right, varName)
+            );
+        case '*':
+            return getMaxExponentForVar(node.left, varName)
+                 + getMaxExponentForVar(node.right, varName);
+        case '^': {
+            const baseExp = getMaxExponentForVar(node.left, varName);
+            if (baseExp === 0) return 0;
+            try {
+                const expVal = evaluateConstant(node.right);
+                if (Number.isInteger(expVal) && expVal >= 0) return baseExp * expVal;
+            } catch (_) {}
+            return baseExp;
+        }
+        default:
+            return Math.max(
+                getMaxExponentForVar(node.left,  varName),
+                getMaxExponentForVar(node.right, varName)
+            );
+    }
+}
+
+// Decide the default lo for a variable given its max exponent in the equation.
+// Even degree: negatives absorbed by squaring → symmetric [-defaultHi, defaultHi]
+// Odd / linear: non-negative per PS (stock units can't be negative) → [0, defaultHi]
+function defaultLoForVar(varName, leftAST, rightAST, isSingleVar) {
+    const maxExp = Math.max(
+        getMaxExponentForVar(leftAST,  varName),
+        getMaxExponentForVar(rightAST, varName)
+    );
+    if (maxExp >= 2 && maxExp % 2 === 0) {
+        // Even degree: symmetric range so we catch negative roots (e.g. x²=4 → x=±2)
+        return isSingleVar ? -SINGLE_DEFAULT_MAX : -MULTI_DEFAULT_MAX;
+    }
+    // Odd / linear: stock units — non-negative only
+    return 0;
+}
+
 function estimateDegree(node) {
     if (!node) return 0;
     if (node.type === "Number") return 0;
@@ -342,11 +393,13 @@ function normalizeConstraint(constraint = {}) {
     };
 }
 
-function buildDomainForVar(varName, userConstraints, isSingleVar) {
+function buildDomainForVar(varName, userConstraints, leftAST, rightAST, isSingleVar) {
     const c = normalizeConstraint(userConstraints[varName] || {});
 
-    let lo = c.min ?? (isSingleVar ? SINGLE_DEFAULT_MIN : MULTI_DEFAULT_MIN);
-    let hi = c.max ?? (isSingleVar ? SINGLE_DEFAULT_MAX : MULTI_DEFAULT_MAX);
+    // Parity-smart default lo: user can always override with explicit min
+    const smartLo = defaultLoForVar(varName, leftAST, rightAST, isSingleVar);
+    let lo = c.min !== null ? c.min : smartLo;
+    let hi = c.max !== null ? c.max : (isSingleVar ? SINGLE_DEFAULT_MAX : MULTI_DEFAULT_MAX);
 
     if (c.exact !== null) {
         lo = c.exact;
@@ -364,7 +417,7 @@ function buildDomainForVar(varName, userConstraints, isSingleVar) {
     const values = [];
     for (let x = lo; x <= hi; x += 1) {
         if (c.even && x % 2 !== 0) continue;
-        if (c.odd && x % 2 === 0) continue;
+        if (c.odd  && x % 2 === 0) continue;
         values.push(x);
     }
 
@@ -394,9 +447,17 @@ function solveSingleVariable(leftAST, rightAST, varName, userConstraints, option
     const equationPoly = subPoly(leftPoly, rightPoly);
     const degree = polyDegree(equationPoly);
 
-    if (degree === 0) return null;
+    if (degree === 0) {
+        // Constant equation — trivially true or impossible
+        const constant = equationPoly[0] ?? 0;
+        if (constant === 0) {
+            // e.g. x^2 - x^2 = 0 — infinitely true, treat as unsolvable for domain
+            throw new EngineError(ErrorCode.UNBOUNDED_SEARCH);
+        }
+        throw new EngineError(ErrorCode.NO_SOLUTIONS);
+    }
 
-    const domain = buildDomainForVar(varName, userConstraints, true);
+    const domain = buildDomainForVar(varName, userConstraints, leftAST, rightAST, true);
     if (domain.values.length > MAX_SINGLE_SCAN_RANGE) {
         throw new EngineError(ErrorCode.UNBOUNDED_SEARCH);
     }
@@ -406,6 +467,13 @@ function solveSingleVariable(leftAST, rightAST, varName, userConstraints, option
         if (evaluatePoly(equationPoly, x) === 0) {
             roots.push({ [varName]: x });
         }
+    }
+
+    // No integer roots found in the scan domain
+    if (roots.length === 0) {
+        throw new EngineError(
+            ErrorCode.NO_SOLUTIONS,
+        );
     }
 
     const paged = paginateSolutions(roots, options);
@@ -430,7 +498,7 @@ function solveMultivariable(leftAST, rightAST, variableOrder, userConstraints, o
     let totalCombinations = 1;
 
     for (const v of variableOrder) {
-        const domain = buildDomainForVar(v, userConstraints, false);
+        const domain = buildDomainForVar(v, userConstraints, leftAST, rightAST, false);
         domains[v] = domain;
         totalCombinations *= domain.values.length;
 
@@ -460,6 +528,11 @@ function solveMultivariable(leftAST, rightAST, variableOrder, userConstraints, o
     }
 
     dfs(0);
+
+    // No integer solutions found in the scan domain
+    if (solutions.length === 0) {
+        throw new EngineError(ErrorCode.NO_SOLUTIONS);
+    }
 
     const paged = paginateSolutions(solutions, options);
 

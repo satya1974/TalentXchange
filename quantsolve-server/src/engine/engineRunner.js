@@ -137,7 +137,7 @@ async function runEngine(input, userConstraints = {}, options = {}) {
 
         // Phase 3: Normalize (linear path)
         const { coeffs, target } = normalizeEquation(left, right);
-        const variableOrder = Object.keys(coeffs);
+        const variableOrder = Object.keys(coeffs).sort(); // deterministic alphabetical order
 
         // Phase 4: Solve (worker thread)
         // Pass page + pageSize so solver returns only the requested slice.
