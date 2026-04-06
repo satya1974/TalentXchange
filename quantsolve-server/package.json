@@ -1,19 +1,32 @@
-{
-    "name": "quantsolve-server",
-    "version": "1.0.0",
-    "description": "",
-    "main": "server.js",
-    "scripts": {
-        "test": "echo \"Error: no test specified\" && exit 1",
-        "dev": "npx nodemon ./server.js"
-    },
-    "keywords": [],
-    "author": "",
-    "license": "ISC",
-    "type": "commonjs",
-    "dependencies": {
-        "cors": "^2.8.6",
-        "dotenv": "^17.4.0",
-        "express": "^5.2.1"
-    }
+﻿{
+  "name": "quantsolve-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "server.js",
+  "gypfile": false,
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "node ./server.js",
+    "dev:watch": "node --watch ./server.js",
+    "dev:nodemon": "npx nodemon ./server.js",
+    "check:napi": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-napi-windows.ps1",
+    "fix:napi": "powershell -ExecutionPolicy Bypass -File ./scripts/setup-napi-windows.ps1 -Install",
+    "build:addon": "node-gyp rebuild",
+    "rebuild:addon": "node-gyp rebuild --verbose",
+    "bench:engines": "node ./scripts/benchmark-engines.js",
+    "test:poly": "node ./scripts/test-polynomial.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "node-addon-api": "^8.3.1"
+  },
+  "devDependencies": {
+    "node-gyp": "^11.2.0"
+  }
 }

@@ -17,6 +17,7 @@ const TokenType = {
     MINUS: "MINUS",
     MUL: "MUL",
     DIV: "DIV",
+    POW: "POW",
     LPAREN: "LPAREN",
     RPAREN: "RPAREN",
     EQUAL: "EQUAL",
@@ -145,6 +146,9 @@ function lexer(input) {
                 break;
             case "/":
                 tokens.push(new Token(TokenType.DIV, "/", pos));
+                break;
+            case "^":
+                tokens.push(new Token(TokenType.POW, "^", pos));
                 break;
             case "(":
                 tokens.push(new Token(TokenType.LPAREN, "(", pos));
