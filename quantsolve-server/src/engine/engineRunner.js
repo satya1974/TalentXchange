@@ -14,6 +14,7 @@ const normalizeEquation = require("./normalizer");
 const formatResults = require("./resultFormatter");
 const handleError = require("./errorHandler");
 const { EngineError, ErrorCode } = require("./errors");
+const { trySolvePolynomial } = require("./polynomialSolver");
 
 const SOLVE_TIMEOUT_MS = 8000;
 
@@ -76,18 +77,71 @@ async function runEngine(input, userConstraints = {}, options = {}) {
         const parser = new Parser(tokens);
         const { left, right } = parser.parseEquation();
 
-        // Phase 3: Normalize
+        // Solver options are shared by linear and polynomial paths.
+        const workerOptions = {
+            page: options.page || 1,
+            pageSize: options.pageSize || 50,
+        };
+
+        // Optional polynomial path (currently single-variable integer polynomial support).
+        const polyResult = trySolvePolynomial(
+            left,
+            right,
+            userConstraints,
+            workerOptions,
+        );
+
+        if (polyResult) {
+            const formatted = formatResults(polyResult.solutions, {
+                totalFound: polyResult.totalFound,
+                variableOrder: polyResult.variableOrder,
+                page: polyResult.page,
+                pageSize: polyResult.pageSize,
+                totalPages: polyResult.totalPages,
+                hasMore: polyResult.hasMore,
+            });
+
+            function treeDepth(node) {
+                if (!node) return 0;
+                if (node.type === "Number" || node.type === "Variable") return 1;
+                if (node.type === "UnaryOp") return 1 + treeDepth(node.operand);
+                return 1 + Math.max(treeDepth(node.left), treeDepth(node.right));
+            }
+
+            return {
+                success: true,
+                input: cleanedInput,
+                coeffs: {},
+                target: 0,
+                variableOrder: polyResult.variableOrder,
+                polynomial: polyResult.polynomial,
+                ast: { left, right },
+                totalFound: polyResult.totalFound,
+                page: polyResult.page,
+                pageSize: polyResult.pageSize,
+                totalPages: polyResult.totalPages,
+                hasMore: polyResult.hasMore,
+                solutions: polyResult.solutions,
+                formattedResult: formatted,
+                warnings: formatted.warnings,
+                meta: {
+                    variableCount: polyResult.variableOrder.length,
+                    constraintCount: Object.keys(userConstraints).length,
+                    astDepth: treeDepth(left),
+                    solverType: "polynomial",
+                    polynomialDegree: polyResult.polynomial.degree,
+                    searchBounds: polyResult.searchBounds,
+                },
+            };
+        }
+
+        // Phase 3: Normalize (linear path)
         const { coeffs, target } = normalizeEquation(left, right);
         const variableOrder = Object.keys(coeffs);
 
         // Phase 4: Solve (worker thread)
         // Pass page + pageSize so solver returns only the requested slice.
         // totalFound in the response is always the TRUE full count.
-        const workerOptions = {
-            page: options.page || 1,
-            pageSize: options.pageSize || 50,
-        };
-
         const solveResult = await runSolverInWorker(
             coeffs,
             target,
@@ -134,6 +188,7 @@ async function runEngine(input, userConstraints = {}, options = {}) {
                 variableCount: Object.keys(coeffs).length,
                 constraintCount: Object.keys(userConstraints).length,
                 astDepth: treeDepth(left),
+                solverType: "linear",
             },
         };
     } catch (err) {

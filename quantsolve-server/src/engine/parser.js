@@ -9,20 +9,17 @@ const {
 } = require("./ast");
 const { EngineError, ErrorCode } = require("./errors");
 
-// Helper: check if an AST subtree contains any variable node
-// Used to enforce the division policy: variable in denominator → reject
 function containsVariable(node) {
     if (!node) return false;
     if (node.type === "Variable") return true;
     if (node.type === "Number") return false;
     if (node.type === "UnaryOp") return containsVariable(node.operand);
-    if (node.type === "BinaryOp")
+    if (node.type === "BinaryOp") {
         return containsVariable(node.left) || containsVariable(node.right);
+    }
     return false;
 }
 
-// Helper: evaluate a pure-constant subtree to a number.
-// Returns null if the subtree contains any variable.
 function evalConstant(node) {
     if (!node) return null;
     if (node.type === "Number") return node.value;
@@ -38,6 +35,10 @@ function evalConstant(node) {
         if (node.operator === "-") return l - r;
         if (node.operator === "*") return l * r;
         if (node.operator === "/") return r === 0 ? null : l / r;
+        if (node.operator === "^") {
+            if (!Number.isInteger(r) || r < 0) return null;
+            return l ** r;
+        }
     }
     return null;
 }
@@ -67,18 +68,17 @@ class Parser {
                 tok.position,
             );
         }
-        this.pos++;
+        this.pos += 1;
         return tok;
     }
 
-    // atom = NUMBER | VARIABLE | "(" expression ")"
+    // atom = NUMBER | VARIABLE | "(" expression ")" | "-" atom
     parseFactor() {
         const tok = this.peek();
 
-        // Unary minus — handles: -x, -3, -(x+y), --x
         if (tok.type === TokenType.MINUS) {
             this.eat(TokenType.MINUS);
-            const operand = this.parseFactor(); // recursive: handles --x correctly
+            const operand = this.parseFactor();
             return new UnaryOpNode("-", operand);
         }
 
@@ -106,9 +106,21 @@ class Parser {
         );
     }
 
-    // term = factor (("*" | "/") factor)*
-    parseTerm() {
+    // power = factor ("^" factor)*
+    parsePower() {
         let node = this.parseFactor();
+
+        while (this.peek().type === TokenType.POW) {
+            this.eat(TokenType.POW);
+            node = new BinaryOpNode(node, "^", this.parseFactor());
+        }
+
+        return node;
+    }
+
+    // term = power (("*" | "/") power)*
+    parseTerm() {
+        let node = this.parsePower();
 
         while (
             this.peek().type === TokenType.MUL ||
@@ -118,15 +130,12 @@ class Parser {
 
             if (opTok.type === TokenType.MUL) {
                 this.eat(TokenType.MUL);
-                node = new BinaryOpNode(node, "*", this.parseFactor());
+                node = new BinaryOpNode(node, "*", this.parsePower());
             } else {
-                // Division — enforce the spec policy here at parse time
                 this.eat(TokenType.DIV);
-                const denomNode = this.parseFactor();
+                const denomNode = this.parsePower();
 
-                // Policy 1: variable in denominator → non-linear, hard reject
                 if (containsVariable(denomNode)) {
-                    // Extract the variable name for the error message if possible
                     const varName =
                         denomNode.type === "Variable"
                             ? denomNode.name
@@ -137,7 +146,6 @@ class Parser {
                     );
                 }
 
-                // Policy 2: zero denominator → division by zero
                 const denomValue = evalConstant(denomNode);
                 if (denomValue === 0) {
                     throw new EngineError(ErrorCode.DIVISION_BY_ZERO);
@@ -177,7 +185,6 @@ class Parser {
         this.eat(TokenType.EQUAL);
         const right = this.parseExpression();
 
-        // Must be at EOF now
         if (this.peek().type !== TokenType.EOF) {
             throw new EngineError(ErrorCode.TRAILING_TOKENS);
         }

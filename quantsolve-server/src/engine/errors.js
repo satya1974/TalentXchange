@@ -1,5 +1,5 @@
 // engine/errors.js
-// Central error taxonomy — every error in the system originates here.
+// Central error taxonomy - every error in the system originates here.
 // Never throw plain strings. Always throw an EngineError.
 
 const ErrorCode = {
@@ -19,6 +19,7 @@ const ErrorCode = {
     VARIABLE_IN_DENOMINATOR: "VARIABLE_IN_DENOMINATOR",
     FRACTIONAL_COEFFICIENT: "FRACTIONAL_COEFFICIENT",
     NON_LINEAR_TERM: "NON_LINEAR_TERM",
+    POLYNOMIAL_UNSUPPORTED: "POLYNOMIAL_UNSUPPORTED",
     NO_VARIABLES: "NO_VARIABLES",
     NEGATIVE_COEFFICIENT: "NEGATIVE_COEFFICIENT",
 
@@ -34,10 +35,10 @@ const ErrorCode = {
     INTERNAL_ERROR: "INTERNAL_ERROR",
 };
 
-// User-facing messages — these are what the frontend displays
+// User-facing messages - these are what the frontend displays
 const ErrorMessages = {
     [ErrorCode.INVALID_CHARACTER]: (ch, pos) =>
-        `Invalid character '${ch}' at position ${pos}. Only letters, digits, and operators (+, -, *, /, =, parentheses) are allowed.`,
+        `Invalid character '${ch}' at position ${pos}. Only letters, digits, and operators (+, -, *, /, ^, =, parentheses) are allowed.`,
 
     [ErrorCode.DECIMAL_NOT_SUPPORTED]: (pos) =>
         `Decimal numbers are not supported at position ${pos}. This solver works with whole numbers only.`,
@@ -64,10 +65,13 @@ const ErrorMessages = {
         `Non-linear equation: variable '${varName}' appears in a denominator. This solver only supports linear equations.`,
 
     [ErrorCode.FRACTIONAL_COEFFICIENT]: (varName, coeff) =>
-        `Fractional coefficient (${coeff}) produced for variable '${varName}'. All coefficients must be whole numbers. For example, 3x/2 = 12 is not valid — rewrite as 3x = 24.`,
+        `Fractional coefficient (${coeff}) produced for variable '${varName}'. All coefficients must be whole numbers. For example, 3x/2 = 12 is not valid - rewrite as 3x = 24.`,
 
     [ErrorCode.NON_LINEAR_TERM]: () =>
-        `Non-linear term detected (e.g. x², x*y). This solver only handles linear equations where each variable appears with a fixed integer coefficient.`,
+        `Non-linear term detected (e.g. x^2, x*y). This solver only handles linear equations where each variable appears with a fixed integer coefficient.`,
+
+    [ErrorCode.POLYNOMIAL_UNSUPPORTED]: (reason) =>
+        `Polynomial input not supported in this form${reason ? `: ${reason}` : ""}. Current support is single-variable integer polynomial equations (for example x^2 - 5x + 6 = 0).`,
 
     [ErrorCode.NO_VARIABLES]: () =>
         `No variables found in the equation. Please include at least one variable (e.g. x, y, apple).`,
@@ -82,7 +86,7 @@ const ErrorMessages = {
         `Infinite answers detected. Please apply market limits. The solution space is too large to compute without variable constraints.`,
 
     [ErrorCode.NEGATIVE_TARGET]: () =>
-        `No solutions exist — the equation simplifies to a negative right-hand side, which cannot be satisfied by non-negative integers.`,
+        `No solutions exist - the equation simplifies to a negative right-hand side, which cannot be satisfied by non-negative integers.`,
 
     [ErrorCode.INVALID_CONSTRAINT]: (varName, reason) =>
         `Invalid constraint for variable '${varName}': ${reason}`,
