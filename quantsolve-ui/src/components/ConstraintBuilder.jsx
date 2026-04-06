@@ -1,12 +1,41 @@
-﻿import { motion } from "framer-motion";
+import { motion } from "framer-motion";
 
-function Field({ label, value, onChange, placeholder, disabled = false }) {
+// Detect the max exponent for a variable from the equation string (lightweight heuristic).
+// Returns the highest power seen: e.g. "x^2 + y^2 = 25" → x:2, y:2
+function detectMaxExponent(equation, varName) {
+    const re = new RegExp(
+        `(?:^|[^a-zA-Z0-9])${varName}\\s*\\^\\s*(\\d+)`,
+        "g"
+    );
+    let max = 0;
+    let m;
+    while ((m = re.exec(equation)) !== null) {
+        const exp = parseInt(m[1], 10);
+        if (exp > max) max = exp;
+    }
+    // If variable appears without exponent, it's at least degree 1
+    const plain = new RegExp(`(?:^|[^a-zA-Z0-9])${varName}(?![a-zA-Z0-9^])`, "g");
+    if (max === 0 && plain.test(equation)) max = 1;
+    return max;
+}
+
+// Based on parity of max exponent, return the smart default domain label.
+function smartDomainHint(equation, varName) {
+    const exp = detectMaxExponent(equation, varName);
+    if (exp >= 2 && exp % 2 === 0) {
+        return { lo: "−100", hi: "100", note: "Symmetric (even degree)" };
+    }
+    return { lo: "0", hi: "100", note: "Non-negative (linear/odd)" };
+}
+
+function Field({ label, value, onChange, placeholder, disabled = false, type = "text" }) {
     return (
         <label className="grid gap-1">
             <span className="text-[0.68rem] uppercase tracking-[0.08em] muted font-semibold">
                 {label}
             </span>
             <input
+                type={type}
                 value={value}
                 onChange={(e) => onChange(e.target.value)}
                 placeholder={placeholder}
@@ -21,6 +50,7 @@ export default function ConstraintBuilder({
     variables,
     constraints,
     setConstraints,
+    equation = "",
 }) {
     const update = (name, patch) => {
         setConstraints((prev) => ({
@@ -41,6 +71,7 @@ export default function ConstraintBuilder({
             {variables.map((v, i) => {
                 const c = constraints[v] || {};
                 const exactOn = c.exact !== "" && c.exact !== undefined;
+                const hint = smartDomainHint(equation, v);
                 return (
                     <motion.div
                         key={v}
@@ -52,7 +83,13 @@ export default function ConstraintBuilder({
                         <div className="flex items-center justify-between mb-2">
                             <div>
                                 <div className="font-semibold">{v}</div>
-                                <div className="text-xs muted">Variable constraint set</div>
+                                <div className="text-xs muted">
+                                    Auto domain:{" "}
+                                    <span className="text-accent font-mono">
+                                        [{hint.lo}, {hint.hi}]
+                                    </span>{" "}
+                                    — {hint.note}
+                                </div>
                             </div>
                             <button
                                 type="button"
@@ -73,29 +110,32 @@ export default function ConstraintBuilder({
 
                         <div className="grid gap-2 md:grid-cols-3">
                             <Field
-                                label="Min"
-                                value={c.min || ""}
+                                label={`Min (lo) — default ${hint.lo}`}
+                                type="number"
+                                value={c.min ?? ""}
                                 onChange={(value) => update(v, { min: value })}
-                                placeholder="0"
+                                placeholder={hint.lo}
                                 disabled={exactOn}
                             />
                             <Field
-                                label="Max"
-                                value={c.max || ""}
+                                label={`Max (hi) — default ${hint.hi}`}
+                                type="number"
+                                value={c.max ?? ""}
                                 onChange={(value) => update(v, { max: value })}
-                                placeholder="100"
+                                placeholder={hint.hi}
                                 disabled={exactOn}
                             />
                             <Field
                                 label="Exact"
-                                value={c.exact || ""}
+                                type="number"
+                                value={c.exact ?? ""}
                                 onChange={(value) =>
                                     update(v, {
                                         exact: value,
                                         ...(value !== "" ? { even: false, odd: false } : {}),
                                     })
                                 }
-                                placeholder="3"
+                                placeholder="e.g. 3"
                             />
                         </div>
 
